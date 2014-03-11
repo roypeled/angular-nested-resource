@@ -10,109 +10,100 @@ So here is my solution.
 
 
 ## Usage
-To use this module you must add the JS file to your HTML and add `ngExtender` as a dependency to your app:
+To use this module you must add the JS file to your HTML and add `ngNestedResource` as a dependency to your app:
 ```html
 <!DOCTYPE html>
 <html>
 <head>
     <title></title>
-    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.2/angular.min.js"></script>
-    <script src="angular-class-extender.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.5/angular.min.js"></script>
+    <script src="angular-nested-resource.js"></script>
 </head>
 <body ng-app="app">
 ...
 
 ```
 ```js
-angular.module("app", ["ngExtender"]);
+angular.module("app", ["ngNestedResource"]);
 ```
 
-### Basic Inheritance
+### Basic root object
+Nested resource is using angular's own resource module as a scaffolding. So you can use the original resource configuration:
 ```js
-function ParentClass($scope){
-  $scope.foo = function(){
-    // Do A
-  }
-}
 
-function HelperClass($scope){
-  $scope.help = function(){
-    // Get help!
-  }
-}
-
-function ChildClass($extend, $scope){
-  $extend($scope).with(ParentClass, HelperClass);
-}
-```
-Now calling `foo()` or `help()` from `ChildClass` would actually call `foo()` from `ParentClass` and do 'A' or `help()` from `HelperClass`. 
-
-### Overriding Methods and Calling Super Methods
-```js
-function ChildClass($extend, $scope){
-  var $super = $extend($scope).with(ParentClass);
-  
-  $scope.foo = function(){
-    
-    // Do B
-    
-    $super.foo();
-  }
-}
-```
-Calling `foo()` from `ChildClass` would perform the overidden method, and the `ParentClass` method by calling `$super`.
-
-### Implementing Abtract Methods
-```js
-function ParentClass($scope){
-  $scope.$abstract("bar");
-}
-
-function ChildClass($extend, $scope){
-  $extend($scope).with(ParentClass);
-  
-  $scope.bar = function(){
-    // Do C
-  }
-}
-```
-Using the `$abstract` syntax you are making sure that whichever class extended `ParentClass` it has to implement `bar()` method.
-Not doing so would result in an error:
-> Abstract method bar must be overriden in ChildClass!
-
-### Binded Event
-This handler is called after all the classes in your inheritance tree have been linked, so you can be sure you can access all of the inherited or implemented properies.
-```js
-function ParentClass($scope){
-  window.alert($scope.bar); // undefined
-
-  $scope.$binded(function(){
-    window.alert($scope.bar); // hello world!
-  });
-  
-  $scope.$abstract("bar");
-}
-
-function ChildClass($extend, $scope){
-  $extend($scope).with(ParentClass);
-  
-  $scope.bar = "hello world!"
-}
-```
-
-### Unit Testing
-Angular Class Extender now fully supports unit testing by using the injected class $extendedController instead of $controller
-
-```js
-it("should properly identify extended methods", function(){
-
-    var scope = $rootScope.$new();
-    scope.test = true;
-
-    $extendedController("ChildClass", {$scope: scope});
-    expect(scope.test).toEqual(true);
-    expect(scope.bar).toEqual("hello world!");
-    expect(scope.foo).toBeDefined();
-    
+var organizations = nestedResource("/api/organizations/", {
+    getAll: {method: "GET", isArray: true},
+    create: {method: "POST"}
 });
+
+organizations.getAll();
+// GET: "/api/organizations/"
+organizations.create({name: "Google.com"}); 
+// POST: "/api/organizations/", payload: "{name: 'Google.com'}"
+// returns { id:1, name: "Google.com"}
+
 ```
+Each method will behave like a regular resource object.
+
+### Creating nested objects
+```js
+var organizations = nestedResource("/api/organizations/", {
+    getAll: {method: "GET", isArray: true},
+    create: {method: "POST"},
+    get: {
+        route: "/@/",
+        method: "GET"
+    }
+});
+
+organizations.get(1); 
+// GET: "/api/organizations/1/"
+// returns { id:1, name: "Google.com"}
+```
+When specifying a route to an action you can add a wildcard (@) which will be replaced with the parameter supplied to the action.
+
+### Extending a nested object
+```js
+var organizations = nestedResource("/api/organizations/", {
+    get: {
+        route: "/@/",
+        method: "GET",
+        nested: {
+            update: { method: "PUT" },
+            delete: { method: "DELETE" },
+            workers: {
+                method: "GET",
+                route: "workers/",
+                isArray: true,
+                nested: {
+                    update: {
+                        method: "PUT",
+                        route: "@/"
+                    }
+                }
+            }
+        }
+    }
+});
+
+var organization = organizations.get(1); 
+// GET: "/api/organizations/1/"
+// returns { id:1, name: "Google.com"}
+
+organization.$update({name: "Bing.com"});
+// PUT: "/api/organizations/1/", payload: "{name: 'Bing.com'}"
+// returns { id:1, name: "Bing.com"}
+
+var workers = organization.$workers();
+// GET: "/api/organizations/1/workers/"
+// returns [...]
+
+workers.$update(264, {name: "Steve Ballmer"});
+// PUT: "/api/organizations/1/workers/264/", payload: "{name: 'Steve Ballmer'}"
+```
+You can nest objects using the 'nested' property, and just follow the same pattern inside.
+
+
+### Async Handling
+
+Since this module is using resource, all requests are handled with $q's promises.

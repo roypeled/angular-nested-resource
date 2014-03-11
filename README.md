@@ -1,4 +1,4 @@
-angular-class-extender
+angular-nested-resource
 ======================
 
 A lightweight angular module that helps working with RESTful models.

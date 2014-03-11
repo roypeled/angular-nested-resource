@@ -38,7 +38,7 @@
                 // symbol with a resource param placeholder, and pass the configurations
                 // to the resource
                 var nestedResource = $resource(futureRoute.replace("@", ":param"), {}, {
-                    get: {method: nested[key].method, isArray: nested[key].isArray}
+                    get: {method: nested[key].method, params: {param: "@param"}, isArray: nested[key].isArray}
                 });
                 // Loop through the nested objects inside this action
                 result[key] = fabricateStep(futureRoute, nested[key], nestedResource);

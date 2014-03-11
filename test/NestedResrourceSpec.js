@@ -54,7 +54,7 @@ describe("Nested Resource", function(){
         httpBackend.flush();
 
         organization.$update({name: "Bing.com"});
-        httpBackend.expectPUT("/api/organizations/1").respond({id:1, name:"Bing.com"});
+        httpBackend.expectPUT("/api/organizations/1", {name: "Bing.com"}).respond({id:1, name:"Bing.com"});
         httpBackend.flush();
 
         var workers = organization.$workers();

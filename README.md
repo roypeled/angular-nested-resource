@@ -51,7 +51,7 @@ var organizations = nestedResource("/api/organizations/", {
     getAll: {method: "GET", isArray: true},
     create: {method: "POST"},
     get: {
-        route: "/@/",
+        route: "@/",
         method: "GET"
     }
 });
@@ -66,7 +66,7 @@ When specifying a route to an action you can add a wildcard (@) which will be re
 ```js
 var organizations = nestedResource("/api/organizations/", {
     get: {
-        route: "/@/",
+        route: "@/",
         method: "GET",
         nested: {
             update: { method: "PUT" },

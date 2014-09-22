@@ -1,81 +1,248 @@
 /**!
  * AngularJS Nested Resource
  * @author  Roy  <peled.roy@gmail.com>
- * @version 1.0.0
+ * @version 2.0.0
  */
 (function() {
     var angularNested = angular.module('ngNestedResource', []);
 
-    angularNested.factory('nestedResource', ['$resource', function($resource) {
+    angularNested.factory('nestedResource', ['$http', '$q', function($http, $q) {
 
 
-        function buildStep(currentRoute, actions){
+        var noop = angular.noop,
+            forEach = angular.forEach,
+            extend = angular.extend,
+            copy = angular.copy,
+            isFunction = angular.isFunction,
+            isObject = angular.isObject;
 
+        var KEYS_TO_REMOVE = {
+            params: true, isArray: true, interceptor: true, construct: true, nested: true, route: true
+        }
+
+
+        function cleanParams(params){
             var result = {};
-            var nested = {};
-
-            // Check if we have any nested objects in the resource
-            // If we found any, remove them and save in a different object
-            for(var key in actions){
-                if(actions[key].nested || actions[key].route){
-                    nested[key] = actions[key];
-                    delete actions[key];
-                }
-            }
-
-            // Create a new resource for the normal resource requests (resource API)
-            var resource = $resource(currentRoute, {}, actions);
-
-            // Add all methods from the resource to our result object
-            for(var key in actions){
-                result[key] = resource[key];
-            }
-
-            for(var key in nested){
-                // For each nested object, create a new route from the config
-                var futureRoute = currentRoute + (nested[key].route || "");
-                // Create a resource object for that route, replace the '@'
-                // symbol with a resource param placeholder, and pass the configurations
-                // to the resource
-                var nestedResource = $resource(futureRoute.replace("@", ":param"), {}, {
-                    get: {method: nested[key].method, params: {param: "@param"}, isArray: nested[key].isArray}
-                });
-                // Loop through the nested objects inside this action
-                result[key] = fabricateStep(futureRoute, nested[key], nestedResource);
-            }
-
+            forEach(params, function(value, key){
+                if(!/^\$/.test(key))
+                    result[key] = value;
+            });
             return result;
         }
 
-        function fabricateStep(current, nest, nestedResource){
-            return function(mainParam, payloadObj){
-                // When this method is called with a param save a new route with the static param
-                // for a future nested object
-                if(typeof mainParam == "object"){
-                    payloadObj = mainParam;
-                    mainParam = "";
-                }
-                var resourceParams = {param: mainParam};
-                for(var key in payloadObj){
-                    resourceParams[key] = payloadObj[key];
-                }
-                var futureRoute = current.replace("@", mainParam);
-                var nestedResult = nestedResource.get(resourceParams);
-                nestedResult.$promise.then(function(resourceObject){
-                    for(var action in nestedSteps)
-                        resourceObject["$" + action] = nestedSteps[action];
-                })
-                var nestedSteps = buildStep(futureRoute, angular.copy(nest.nested));
+        function defaultResponseInterceptor(response) {
+            return response;
+        }
 
-                for(var action in nestedSteps)
-                    nestedResult["$" + action] = nestedSteps[action];
+        function Route(template){
+            var builtRoute = template;
 
-                return nestedResult;
+            return {
+                build: function(param){
+                    if(typeof param == "object") {
+                        builtRoute = template.replace(/@([^/]*)/, function(match, group){
+                            return param[group];
+                        });
+                    } else
+                        builtRoute = template.replace(/@([^/]*)/, param);
+
+                    isBuilt = true;
+                },
+                parameterize: function(obj){
+                    if(!obj)
+                        return;
+
+                    builtRoute = builtRoute.replace(/:([^/]*)/gi, function(match, group){
+                        return obj[group];
+                    });
+                },
+                url: function(){
+                    return builtRoute;
+                },
+                template: function(){
+                    return template;
+                }
+
             }
         }
 
-        return function(root, actions){
-            return buildStep(root, actions);
-        }
+        return (function Factory(root, setup, type){
+
+            var constructObject, rootObject;
+
+            type = type || "resource";
+
+            function NestedAction(parentRoute, setupParams){
+
+                var currentRoute, httpConfig = {}, parameters, FutureActions;
+
+                var DEFAULT_SETTINGS = {
+                    method: "GET",
+                    route: ""
+                }
+
+                forEach(setupParams, function(value, key) {
+                    if (!KEYS_TO_REMOVE[key]) {
+                        httpConfig[key] = copy(value);
+                    }
+                });
+
+                return function callNestedAction(param, payload, success, error){
+                    /**
+                     * Fallback variables
+                     */
+                    if(isObject(param)){
+                        error = success;
+                        success = payload
+                        payload = param;
+                        param = null;
+                    } else if(isFunction(param)){
+                        error = payload;
+                        success = param;
+                        payload = {};
+                        param = null;
+                    } else if(isFunction(payload)){
+                        error = success;
+                        success = payload;
+                        payload = {};
+                    }
+
+                    parameters = copy(payload || {});
+                    extend(parameters, this);
+
+                    currentRoute = new Route(parentRoute.url() + (setupParams.route || DEFAULT_SETTINGS.route));
+                    FutureActions = innerStepFactory(currentRoute, setupParams.nested);
+
+                    currentRoute.build(param || parameters);
+                    currentRoute.parameterize(parameters);
+
+                    httpConfig.url = currentRoute.url();
+
+                    // If the request if GET, send in querystring only the supplied arguments. Else (PUT, POST, DELETE), send the entire object:
+                    if(httpConfig.method == "GET")
+                        httpConfig.params = payload;
+                    else
+                        httpConfig.data = cleanParams(parameters);
+
+                    var responseInterceptor = setupParams.interceptor && setupParams.interceptor.response ||
+                        defaultResponseInterceptor;
+                    var responseErrorInterceptor = setupParams.interceptor && setupParams.interceptor.responseError ||
+                        undefined;
+
+                    var value;
+                    if(setupParams.isArray)
+                        value = [];
+                    else if(!setupParams.scoped)
+                        value = this.$$type ? this : new FutureActions(this);
+                    else
+                        value =  new FutureActions();
+
+                    var result = $http(httpConfig)
+                        .then(function(response){
+                            var data = response.data;
+
+                            if (data) {
+                                if (setupParams.isArray) {
+                                    if(setupParams.iterator){
+                                        var wrapped = setupParams.iterator(data, function(item){
+                                            return new FutureActions(item, true);
+                                        });
+                                        value = value.concat(wrapped);
+                                    } else {
+                                        for (var i = 0; i < data.length; i++) {
+                                            value.push(new FutureActions(data[i], true));
+                                        }
+                                    }
+                                } else if(isObject(data)) {
+                                    extend(value, data);
+                                }
+                            }
+
+                            response.resource = value;
+
+                            return response;
+
+                        }, function(response) {
+
+                            (error||noop)(response);
+
+                            return $q.reject(response);
+                        });
+
+                    result = result.then(
+                        function(response) {
+                            var value = responseInterceptor(response.resource);
+                            (success||noop)(value, response.headers);
+                            return value;
+                        },
+                        responseErrorInterceptor);
+
+                    return value;
+
+                }
+
+            }
+
+            function rootStepFactory(baseRoute, setupActions){
+                var actions = {};
+
+                function NestedResource(data){
+                    if(data && constructObject)
+                        data = new constructObject(data);
+                    else
+                        extend(this, actions);
+                    extend(this, data);
+                }
+
+                NestedResource.prototype["$$type"] = type;
+
+                forEach(setupActions, function(action, name){
+                    actions[name] = new NestedAction(baseRoute, action);
+                });
+
+                extend(NestedResource, actions);
+
+                return NestedResource;
+            }
+
+            function innerStepFactory(baseRoute, setupActions){
+                if(!setupActions)
+                    return constructObject || rootObject;
+
+                var actions = {};
+
+                function NestedResource(data){
+                    extend(this, data);
+                    extend(this, actions);
+                }
+
+                actions["$$type"] = type;
+
+                forEach(setupActions, function(action, name){
+                    actions["$" + name] = new NestedAction(baseRoute, action);
+                });
+
+                return NestedResource;
+            }
+
+            function constructStepFactory(baseRoute, setupActions){
+                forEach(setupActions, function(action, name){
+                    if(action.construct) {
+                        var newRoute = new Route(baseRoute.url() + action.route)
+                        constructObject = innerStepFactory(newRoute, action.nested);
+                    }
+                });
+            }
+
+            var root = new Route(root);
+
+            constructStepFactory(root, setup);
+
+            rootObject = rootStepFactory(root, setup);
+
+            return rootObject;
+
+        })
+
     }]);
 })();

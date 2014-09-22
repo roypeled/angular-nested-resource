@@ -112,6 +112,70 @@ workers.$update(264, {name: "Steve Ballmer"});
 You can nest objects using the 'nested' property, and just follow the same pattern inside.
 
 
+### Creating a new resource with existing data
+
+```js
+var Organizations = nestedResource("/api/organizations/", {
+    get: {
+        route: "@id/",
+        method: "GET",
+        construct: true,
+        nested: {
+            update: { method: "PUT" },
+            delete: { method: "DELETE" },
+            workers: {
+                method: "GET",
+                route: "workers/",
+                isArray: true,
+                nested: {
+                    update: {
+                        method: "PUT",
+                        route: "@/"
+                    }
+                }
+            }
+        }
+    }
+});
+
+var org = {
+    id: 294,
+    name: "Google Inc."
+}
+
+var orgResource = new Organizations(org);
+orgResource.$delete()
+// DELETE: "/api/organizations/294/"
+```
+A constructor action will us its nested actions to wrap a new object. When defining a constructor action define which property name should be used in the route (@id -> id: 294).
+
+### Defining type
+
+```js
+var Organizations = nestedResource("/api/organizations/", {
+    getAll: {method: "GET", isArray: true},
+    create: {method: "POST"},
+    get: {
+        route: "@/",
+        isArray: true,
+        method: "GET"
+    }
+}, "organization");
+
+Organizations.$$type;
+// "organization"
+
+var org = Organizations.get(1);
+org[0].$$type;
+// "organization"
+
+var org = new Organizations();
+org.$$type;
+// "organization"
+```
+A type is added for every nestedResource object.
+
+
 ### Async Handling
 
 Since this module is using resource, all requests are handled with $q's promises.

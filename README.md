@@ -59,12 +59,16 @@ var organizations = nestedResource("/api/organizations/", {
     getAll: {method: "GET", isArray: true},
     create: {method: "POST"},
     get: {
-        route: "@/",
+        route: "@id/",
         method: "GET"
     }
 });
 
 organizations.get(1); 
+// GET: "/api/organizations/1/"
+// returns { id:1, name: "Google.com"}
+
+organizations.get({id: 1}); 
 // GET: "/api/organizations/1/"
 // returns { id:1, name: "Google.com"}
 ```

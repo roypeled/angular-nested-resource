@@ -208,6 +208,6 @@ function onError(e){
 
 A nested action has a maximum of 4 parameters:
 ```js
-Organizations.get(singleParam (string|integer), payloadObject, onSuccess, onError);
+Organizations.get(routeParam (string|integer), payloadObject, onSuccess, onError);
 ```
 All parameters are optional.

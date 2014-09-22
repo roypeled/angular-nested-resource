@@ -68,7 +68,7 @@ organizations.get(1);
 // GET: "/api/organizations/1/"
 // returns { id:1, name: "Google.com"}
 ```
-When specifying a route to an action you can add a wildcard (@) which will be replaced with the parameter supplied to the action.
+When specifying a route to an action you can add a wildcard (@) which will be replaced with the parameter supplied to the action, or a field name (@id) which will be replaced from the same field name in a supplied object.
 
 ### Extending a nested object
 ```js

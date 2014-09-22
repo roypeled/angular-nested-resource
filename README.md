@@ -182,4 +182,32 @@ A type is added for every nestedResource object.
 
 ### Async Handling
 
-Since this module is using resource, all requests are handled with $q's promises.
+This module uses $q's promises:
+
+```js
+var Organizations = nestedResource("/api/organizations/", {
+    getAll: {method: "GET", isArray: true},
+    create: {method: "POST"},
+    get: {
+        route: "@/",
+        isArray: true,
+        method: "GET"
+    }
+});
+
+Organizations.get(1, onSuccess, onError);
+
+funciton onSuccess(org){
+    org.id; // 1;
+}
+
+function onError(e){
+    // Something went wrong...
+}
+```
+
+A nested action has a maximum of 4 parameters:
+```js
+Organizations.get(singleParam (string|integer), payloadObject, onSuccess, onError);
+```
+All parameters are optional.

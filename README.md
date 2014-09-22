@@ -151,7 +151,7 @@ var orgResource = new Organizations(org);
 orgResource.$delete()
 // DELETE: "/api/organizations/294/"
 ```
-A constructor action will us its nested actions to wrap a new object. When defining a constructor action define which property name should be used in the route (@id -> id: 294).
+A constructor action will use its nested actions to wrap a new object. When defining a constructor action define which property name should be used in the route (@id -> id: 294).
 
 ### Defining type
 

@@ -8,6 +8,14 @@ I liked ng-resources approach, but the implementation is horrible with nested ob
 
 So here is my solution.
 
+### Version 2.0
+- Removed dependency with ngResource, now this code duplicates $resource's behavior.
+- Refactored the entire process, code is much more organized.
+- Added support to define a type for a resource which will be accesible on the $$type flag.
+- Added better promise behavior.
+- Added 'constructor' flag which will allow wrapping of objects in an inner actions.
+- Added 'iterator' function to manipulate wrapping of array results.
+
 
 ## Usage
 To use this module you must add the JS file to your HTML and add `ngNestedResource` as a dependency to your app:

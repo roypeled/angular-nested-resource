@@ -1,0 +1,25 @@
+{
+  "name": "angular-nested-resource",
+  "version": "2.0.0",
+  "homepage": "https://github.com/roypeled/angular-nested-resource",
+  "authors": [
+    "Roy Peled <peled.roy@gmail.com>"
+  ],
+  "description": "A lightweight angular module that helps working with RESTful models. I was researching restangular and didn't like the fact that it was dependant on lodash and the dact that the models weren't configurable.",
+  "main": "src/angular-nested-resource.js",
+  "keywords": [
+    "REST",
+    "Angular",
+    "AngularJS",
+    "resource",
+    "nested"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
